@@ -1,0 +1,73 @@
+/* Estilos adicionais para formulário com checkbox e campo readonly */
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 2px solid #e2e8f0;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #2563eb;
+}
+
+.checkbox-group label {
+    cursor: pointer;
+    margin: 0;
+    color: #1e293b;
+    font-size: 0.95rem;
+}
+
+.checkbox-group:has(input:checked) {
+    background: #dbeafe;
+    border-color: #2563eb;
+}
+
+/* Campo readonly (Valor Nominal) */
+input[readonly] {
+    background: #f1f5f9;
+    border: 2px solid #cbd5e1;
+    color: #475569;
+    font-weight: 600;
+    cursor: not-allowed;
+}
+
+input[readonly]:focus {
+    outline: none;
+    border-color: #94a3b8;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+/* Ícone de cadeado para campo readonly */
+.form-group:has(input[readonly]) label::before {
+    content: "🔒 ";
+}
+
+/* Destaque visual quando checkbox está marcado */
+.form-group:has(#presumirPisCofins:checked) {
+    background: #f0f9ff;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #2563eb;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .checkbox-group {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

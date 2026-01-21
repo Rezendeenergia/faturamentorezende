@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Extrato - Recebimentos</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Gerenciar Extrato</h1>
+            <p>Registro de Recebimentos</p>
+        </header>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 30px;">
+            <a href="/" class="btn btn-secondary">← Cadastrar NF</a>
+            <a href="/dashboard" class="btn btn-secondary">📊 Dashboard</a>
+        </div>
+
+        <main>
+            <section class="form-section">
+                <h2>Registrar Novo Recebimento</h2>
+
+                <form id="extratoForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="dataRecebimento">Data do Recebimento *</label>
+                            <input type="date" id="dataRecebimento" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="valorRecebido">Valor Recebido *</label>
+                            <input type="number" id="valorRecebido" step="0.01" required placeholder="0,00">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="tipoRecebimento">Tipo de Recebimento *</label>
+                            <select id="tipoRecebimento" required>
+                                <option value="">Selecione...</option>
+                                <option value="Integral">Integral</option>
+                                <option value="PIS/COFINS">PIS/COFINS</option>
+                                <option value="Retenção Contratual">Retenção Contratual</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nfsReferentes">Notas Fiscais Referentes *</label>
+                        <input type="text" id="nfsReferentes" required
+                               placeholder="Ex: 307, 308 ou 307">
+                        <small style="color: #64748b; display: block; margin-top: 5px;">
+                            💡 Separe múltiplas NFs com vírgula. Ex: 307, 308, 309
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="complemento">Complemento / Observação</label>
+                        <textarea id="complemento" rows="3"
+                                  placeholder="Ex: TED-Crédito em Conta FUNDO DE INVES"></textarea>
+                    </div>
+
+                    <div class="info-box">
+                        <p><strong>ℹ️ Como funciona:</strong></p>
+                        <p>• O sistema irá conciliar automaticamente o recebimento com as NFs informadas</p>
+                        <p>• O status das NFs será atualizado para RECEBIDO ou PARCIAL</p>
+                        <p>• O valor será comparado com o "Valor Líquido Vinci" de cada NF</p>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="limparFormulario()">Limpar</button>
+                        <button type="submit" class="btn btn-primary">Registrar Recebimento</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Lista de NFs Pendentes -->
+            <section style="margin-top: 40px;">
+                <h2>📋 Notas Fiscais Pendentes</h2>
+                <p style="color: #64748b; margin-bottom: 20px;">
+                    Use esta lista como referência para registrar recebimentos
+                </p>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>NF</th>
+                                <th>Data</th>
+                                <th>Tipo</th>
+                                <th>Tomador</th>
+                                <th>Valor Líquido</th>
+                                <th>Vencimento</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaPendentes">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 40px;">
+                                    Carregando...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Sistema de Controle Financeiro - Rezende Construção e Manutenção LTDA</p>
+        </footer>
+    </div>
+
+    <!-- Modal de Sucesso -->
+    <div id="successModal" class="modal">
+        <div class="modal-content success">
+            <span class="modal-icon">✅</span>
+            <h3>Recebimento Registrado!</h3>
+            <p id="successMessage"></p>
+            <button class="btn btn-primary" onclick="fecharModal()">OK</button>
+        </div>
+    </div>
+
+    <!-- Modal de Erro -->
+    <div id="errorModal" class="modal">
+        <div class="modal-content error">
+            <span class="modal-icon">❌</span>
+            <h3>Erro</h3>
+            <p id="errorMessage"></p>
+            <button class="btn btn-secondary" onclick="fecharModal()">Fechar</button>
+        </div>
+    </div>
+
+    <script>
+        // Elementos
+        const extratoForm = document.getElementById('extratoForm');
+        const dataRecebimento = document.getElementById('dataRecebimento');
+        const valorRecebido = document.getElementById('valorRecebido');
+        const tipoRecebimento = document.getElementById('tipoRecebimento');
+        const nfsReferentes = document.getElementById('nfsReferentes');
+        const complemento = document.getElementById('complemento');
+
+        // Carrega NFs pendentes ao iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarPendentes();
+        });
+
+        async function carregarPendentes() {
+            try {
+                const response = await fetch('/api/notas-pendentes');
+                const result = await response.json();
+
+                if (result.success) {
+                    renderizarPendentes(result.notas);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar pendentes:', error);
+            }
+        }
+
+        function renderizarPendentes(notas) {
+            const tbody = document.getElementById('tabelaPendentes');
+
+            if (notas.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #64748b;">
+                            🎉 Parabéns! Não há notas pendentes de recebimento.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = notas.map(nota => {
+                const valorLiquido = nota.valor_liquido_vinci || nota.valor_nominal_calculado || 0;
+                const situacaoClass = nota.situacao === 'ATRASADO' ? 'atrasado' : 'a-receber';
+                const situacaoTexto = nota.situacao === 'ATRASADO'
+                    ? `🔴 ${Math.abs(nota.dias_diferenca)}d atraso`
+                    : `🟡 ${Math.abs(nota.dias_diferenca)}d`;
+
+                return `
+                    <tr onclick="copiarNF('${nota.numero_nf}')" style="cursor: pointer;" title="Clique para copiar número da NF">
+                        <td><strong>${nota.numero_nf}</strong></td>
+                        <td>${formatarData(nota.data_emissao)}</td>
+                        <td>${nota.tipo}</td>
+                        <td>${nota.tomador || '-'}</td>
+                        <td><strong>${formatarMoeda(valorLiquido)}</strong></td>
+                        <td>${formatarData(nota.data_vencimento)}</td>
+                        <td><span class="badge ${situacaoClass}">${situacaoTexto}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function copiarNF(numero) {
+            nfsReferentes.value = numero;
+            nfsReferentes.focus();
+        }
+
+        // Submeter formulário
+        extratoForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Converte data para formato dd/mm/yyyy
+            const [ano, mes, dia] = dataRecebimento.value.split('-');
+            const dataFormatada = `${dia}/${mes}/${ano}`;
+
+            const dados = {
+                data_recebimento: dataFormatada,
+                valor_recebido: parseFloat(valorRecebido.value),
+                nfs_referentes: nfsReferentes.value.trim(),
+                tipo_recebimento: tipoRecebimento.value,
+                complemento: complemento.value.trim()
+            };
+
+            try {
+                const response = await fetch('/api/registrar-recebimento', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dados)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    mostrarSucesso(result.message);
+                    setTimeout(() => {
+                        limparFormulario();
+                        carregarPendentes();
+                        fecharModal();
+                    }, 2000);
+                } else {
+                    mostrarErro(result.error || 'Erro ao registrar recebimento.');
+                }
+            } catch (error) {
+                mostrarErro('Erro ao registrar: ' + error.message);
+            }
+        });
+
+        function limparFormulario() {
+            extratoForm.reset();
+        }
+
+        function formatarMoeda(valor) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(valor);
+        }
+
+        function formatarData(data) {
+            if (!data) return '-';
+            const [ano, mes, dia] = data.split('-');
+            return `${dia}/${mes}/${ano}`;
+        }
+
+        function mostrarSucesso(mensagem) {
+            const modal = document.getElementById('successModal');
+            const messageEl = document.getElementById('successMessage');
+            messageEl.textContent = mensagem;
+            modal.classList.add('show');
+        }
+
+        function mostrarErro(mensagem) {
+            const modal = document.getElementById('errorModal');
+            const messageEl = document.getElementById('errorMessage');
+            messageEl.textContent = mensagem;
+            modal.classList.add('show');
+        }
+
+        function fecharModal() {
+            document.getElementById('successModal').classList.remove('show');
+            document.getElementById('errorModal').classList.remove('show');
+        }
+
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                fecharModal();
+            }
+        });
+    </script>
+</body>
+</html>
